@@ -158,6 +158,12 @@
             background-color: #f7f9fc; 
             border-radius: 10px;
         }
+        
+        /* NEW: Style for Drag Over state */
+        #voiceUpload.drag-active {
+            border: 3px solid #007bff; /* Maak de rand sterker */
+            background-color: #e6f2ff; /* Verander de achtergrond lichtjes */
+        }
 
         #voiceUpload p {
              font-size: 0.9em;
@@ -258,6 +264,12 @@
             }
             #downloadButton:hover:not(:disabled) {
                 background-color: #155724;
+            }
+
+            /* NEW: Dark Mode style for Drag Over state */
+            #voiceUpload.drag-active {
+                border: 3px solid #8ab4f8; 
+                background-color: #313e4b;
             }
         }
     </style>
@@ -561,7 +573,7 @@
             }
         }
         
-        // --- NEW DOWNLOAD FUNCTION ---
+        // --- DOWNLOAD FUNCTION ---
         async function downloadAllAudio() {
             if (downloadQueue.length === 0) {
                 alert("No audio has been synthesized yet to download.");
@@ -714,6 +726,48 @@
                 // Reset on error
                 currentVoicePath = null;
                 clearVoiceButton.style.display = 'none';
+            }
+        }
+        
+// --- DRAG AND DROP LOGIC ---
+        const voiceUploadZone = document.getElementById('voiceUpload');
+
+        // Prevent the browser from opening the file when it is dragged
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            voiceUploadZone.addEventListener(eventName, (e) => {
+                e.preventDefault(); // Prevents default behavior (essential!)
+                e.stopPropagation(); // Ensures it is not propagated to other elements
+            }, false);
+        });
+
+        // Visual feedback for drag-over
+        ['dragenter', 'dragover'].forEach(eventName => {
+            voiceUploadZone.addEventListener(eventName, () => {
+                voiceUploadZone.classList.add('drag-active'); // Add a new CSS class
+            }, false);
+        });
+
+        ['dragleave', 'dragend', 'drop'].forEach(eventName => {
+            voiceUploadZone.addEventListener(eventName, () => {
+                voiceUploadZone.classList.remove('drag-active'); // Remove the CSS class
+            }, false);
+        });
+
+        // Process the dropped file
+        voiceUploadZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            // We only expect one file (the reference audio file)
+            const files = dt.files; 
+            
+            if (files.length) {
+                // Set the FileList of the hidden input to the dropped files
+                referenceAudioFile.files = files; 
+                
+                // Manually trigger the change event, so that the existing logic is executed
+                const event = new Event('change');
+                referenceAudioFile.dispatchEvent(event);
             }
         }
     </script>
