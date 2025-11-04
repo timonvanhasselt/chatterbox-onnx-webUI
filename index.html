@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatterbox TTS Streaming (Sentence-by-Sentence)</title>
+    <style>
+        /* Modern Reset and Typography */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            margin: 0;
+            padding: 40px 20px;
+            text-align: center;
+            background-color: #f0f2f5; /* Light grey background */
+            color: #1c1e21;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 {
+            color: #0056b3;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #0056b3;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+            text-align: left;
+        }
+
+        /* Container for better centering and readability */
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: left; /* Align content inside the container to the left */
+        }
+
+        /* Style for the instruction paragraph */
+        .container > p {
+            margin-top: -5px;
+            margin-bottom: 15px;
+        }
+        
+        textarea {
+            width: 95%; 
+            max-width: 650px;
+            height: 180px;
+            padding: 15px;
+            margin-top: 5px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            line-height: 1.5;
+            background-color: #fff;
+            color: #1c1e21;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        textarea:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        button, .file-input-label { 
+            padding: 12px 25px;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px 4px;
+            /* Default blue for Speak and Choose WAV */
+            background-color: #007bff; 
+            color: white;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s, box-shadow 0.2s, opacity 0.2s;
+            display: inline-block; 
+        }
+        
+        /* NEW: Style for the 'Clear Voice' button (Red) */
+        #clearVoiceButton {
+            background-color: #dc3545; /* Red */
+            display: none; /* Hidden by default */
+        }
+
+        #clearVoiceButton:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+        
+        /* NEW: Style for the Download button (Green) */
+        #downloadButton {
+            background-color: #28a745; /* Green */
+        }
+        
+        #downloadButton:hover:not(:disabled) {
+            background-color: #1e7e34;
+        }
+        
+        .file-input-label {
+            background-color: #007bff; 
+            margin-right: 0;
+        }
+
+        .file-input-label:hover {
+            background-color: #0056b3; 
+        }
+        
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        button:disabled {
+            background-color: #c9d8e5;
+            color: #8898a8;
+            cursor: not-allowed;
+            opacity: 0.7;
+            box-shadow: none;
+        }
+
+        #status {
+            margin-top: 25px;
+            padding: 10px;
+            font-weight: 600;
+            color: #007bff;
+            border: 1px dashed #b3d9ff;
+            background-color: #e6f2ff;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        /* Status container above the Speak button */
+        #voiceStatusContainer {
+            margin: 0 auto 20px auto; 
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #e9ecef; 
+            color: #495057;
+            font-size: 1em;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        /* Styling for the Optional Voice Section */
+        #voiceUpload {
+            margin: 15px 0 25px 0; 
+            padding: 20px;
+            border: 2px dashed #007bff; 
+            background-color: #f7f9fc; 
+            border-radius: 10px;
+        }
+
+        #voiceUpload p {
+             font-size: 0.9em;
+             color: #666;
+             margin-top: 0;
+        }
+        
+        /* Hide the default file input */
+        #referenceAudioFile {
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+            width: 0.1px;
+            height: 0.1px;
+            overflow: hidden;
+        }
+        
+        #fileContainer {
+            margin-top: 15px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #fileNameDisplay {
+            font-style: italic;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+        
+        /* Buttons container for better alignment */
+        #actionButtons {
+            display: flex;
+            justify-content: center; /* Center the buttons */
+            gap: 10px; /* Space between buttons */
+            margin-top: 15px;
+        }
+        
+        /* Dark Mode Overrides */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1e1e1e;
+                color: #e0e0e0;
+            }
+            .container {
+                background: #252526;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+            textarea {
+                background-color: #333333;
+                color: #e0e0e0;
+                border: 1px solid #444;
+            }
+            button:disabled {
+                background-color: #4a4a4a;
+                color: #777;
+            }
+            #status {
+                border: 1px dashed #3a689b;
+                background-color: #313e4b;
+                color: #8ab4f8;
+            }
+            #voiceStatusContainer {
+                background-color: #333333;
+                color: #e0e0e0;
+            }
+            #voiceUpload {
+                border: 2px dashed #3a689b;
+                background-color: #2c2c2c;
+            }
+            h2 {
+                 color: #8ab4f8;
+            }
+            #voiceUpload p {
+                color: #bbb;
+            }
+            #fileNameDisplay {
+                color: #bbb;
+            }
+
+            /* DARK MODE FOR RED BUTTON */
+            #clearVoiceButton {
+                background-color: #dc3545; 
+                color: white; 
+            }
+            #clearVoiceButton:hover:not(:disabled) {
+                background-color: #c82333; 
+                color: white;
+            }
+            
+            /* DARK MODE FOR GREEN BUTTON */
+            #downloadButton {
+                background-color: #1e7e34; 
+            }
+            #downloadButton:hover:not(:disabled) {
+                background-color: #155724;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🗣️ Chatterbox Local TTS</h1>
+        
+        <h2>1. Enter Text</h2>
+        <p></p>
+
+        <textarea id="textInput" placeholder="Type your text here. Multiple sentences will be processed sequentially. E.g: This is the first sentence. Here comes the second sentence!"></textarea>
+        
+        <h2>2. Use a Custom Voice (Optional)</h2>
+        <div id="voiceUpload">
+            <p>Optionally choose a short (5-10 seconds) WAV file.</p>
+            
+            <div id="fileContainer">
+                <input type="file" id="referenceAudioFile" accept="audio/wav">
+                
+                <label for="referenceAudioFile" class="file-input-label">Choose WAV File...</label>
+                
+                <span id="fileNameDisplay">No file selected.</span>
+                
+                <button onclick="clearReferenceVoice()" id="clearVoiceButton" style="display: none;">Clear Voice</button>
+            </div>
+        </div>
+
+        <div id="voiceStatusContainer">
+            <p id="voiceStatus" style="margin: 0;">No custom voice selected (Default voice will be used).</p>
+        </div>
+
+        <h2>3. Start Playback and Download</h2>
+        
+        <div id="actionButtons">
+            <button onclick="synthesizeAndQueue()" id="speakButton">Speak (Start Queue)</button>
+            <button onclick="stopPlayback()" id="stopButton" disabled>Stop</button>
+            <button onclick="downloadAllAudio()" id="downloadButton" disabled>Download All (WAV)</button>
+        </div>
+
+        <div id="status">Ready</div>
+
+        <div id="audio-controls">
+            </div>
+    </div>
+
+    <script>
+        // Queue to store the synthesized audio URLs
+        let audioQueue = [];
+        // NEW: Queue to store Blobs for download
+        let downloadQueue = []; 
+        let isPlaying = false;
+        let isSynthesizing = false;
+        const statusDiv = document.getElementById('status');
+        const speakButton = document.getElementById('speakButton');
+        const stopButton = document.getElementById('stopButton');
+        const downloadButton = document.getElementById('downloadButton'); // NEW
+        const textInput = document.getElementById('textInput');
+        let currentAudioElement = null;
+        
+        // New elements
+        const referenceAudioFile = document.getElementById('referenceAudioFile');
+        const voiceStatus = document.getElementById('voiceStatus');
+        const fileNameDisplay = document.getElementById('fileNameDisplay'); 
+        let currentVoicePath = null; 
+        const clearVoiceButton = document.getElementById('clearVoiceButton'); 
+
+
+        // --- Utility to fix/update the WAV header of a Blob (Crucial for merging) ---
+        function fixWavHeader(buffer, totalDataSize) {
+            const dataView = new DataView(buffer);
+            
+            // 1. Write the total file size (ChunkSize)
+            // Total size = File size - 8 bytes (RIFF and ChunkSize itself)
+            dataView.setUint32(4, 36 + totalDataSize, true); 
+            
+            // 2. Write the total size of the DATA chunk
+            dataView.setUint32(40, totalDataSize, true); 
+        }
+
+        // Function to read the Blob array into an ArrayBuffer
+        async function readBlobAsArrayBuffer(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+            });
+        }
+        
+        // --- Event Listener for File Selection ---
+        referenceAudioFile.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                // Show the filename
+                fileNameDisplay.textContent = file.name;
+                // CALL THE UPLOAD FUNCTION IMMEDIATELY
+                uploadReferenceAudio();
+            } else {
+                // Reset if no file is chosen
+                fileNameDisplay.textContent = 'No file selected.';
+                // Also ensure the voice is cleared if the user cancels/resets
+                clearReferenceVoice(); 
+            }
+        });
+
+        // Function to split the text into sentences (simplified version)
+        function splitIntoSentences(text) {
+            // Better regex for splitting based on punctuation followed by space/end
+            const sentences = text.match(/[^.!?]+[.!?](\s|$)/g) || [];
+            
+            if (sentences.length === 0 && text.trim().length > 0) {
+                 return [text.trim()];
+            }
+            return sentences.map(s => s.trim()).filter(s => s.length > 0);
+        }
+
+        // --- CORE PLAYBACK LOGIC (MODIFIED) ---
+
+        function playNextInQueue() {
+            if (audioQueue.length > 0 && isPlaying) {
+                const audioBlob = audioQueue.shift();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                currentAudioElement = new Audio(audioUrl);
+
+                statusDiv.textContent = `🔊 Playing: ${audioQueue.length} sentences remaining...`;
+                
+                currentAudioElement.onended = () => {
+                    URL.revokeObjectURL(audioUrl); 
+                    currentAudioElement = null;
+                    playNextInQueue(); 
+                };
+                
+                currentAudioElement.onerror = (e) => {
+                    console.error("Audio playback error (codec/file):", e);
+                    // Try the next in queue
+                    playNextInQueue(); 
+                };
+
+                // CATCH THE PLAY PROMISE TO HANDLE AUTOPLAY ERRORS
+                const playPromise = currentAudioElement.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        // Playback successfully started
+                    }).catch(error => {
+                        // THIS IS OFTEN THE AUTOPLAY BLOCKADE (NotAllowedError)
+                        console.error("❌ Autoplay Blockade/Play Error:", error);
+                        if (error.name === 'NotAllowedError') {
+                            stopPlayback(); // Stop the queue to prevent further failures
+                            statusDiv.textContent = "❌ AUTOPLAY BLOCKADE: Browser blocked automatic playback of subsequent audio. Click 'Speak' again to resume the queue.";
+                        } else {
+                            // General error handling
+                            playNextInQueue(); 
+                        }
+                    });
+                }
+                
+            } else if (!isSynthesizing) {
+                isPlaying = false;
+                statusDiv.textContent = "✅ Finished playback.";
+                speakButton.disabled = false;
+                stopButton.disabled = true;
+                downloadButton.disabled = false; // Enable download button when playback is finished
+            } else {
+                 statusDiv.textContent = "⏳ Waiting for next sentence...";
+                 downloadButton.disabled = false; // Stays active during synthesis/waiting
+            }
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            isSynthesizing = false;
+            if (currentAudioElement) {
+                currentAudioElement.pause();
+                currentAudioElement = null;
+            }
+            // Clear all Blobs in the playback queue (downloadQueue remains intact)
+            audioQueue.forEach(blob => URL.revokeObjectURL(URL.createObjectURL(blob)));
+            audioQueue = []; 
+            // NOTE: We keep the downloadQueue intact here, only resetting it in synthesizeAndQueue
+            
+            statusDiv.textContent = "🛑 Playback stopped. Queue cleared.";
+            speakButton.disabled = false;
+            stopButton.disabled = true;
+            if (downloadQueue.length === 0) {
+                downloadButton.disabled = true; // Deactivate download button if no content exists
+            } else {
+                 downloadButton.disabled = false; // Allow download of already synthesized parts
+            }
+        }
+
+
+        // --- CORE SYNTHESIS LOGIC ---
+
+        async function synthesizeSentence(text) {
+            try {
+                const payload = { 
+                    text: text,
+                    target_voice_path: currentVoicePath 
+                };
+
+                const response = await fetch('/synthesize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    // Log the server error (important for debugging)
+                    const errorText = await response.text();
+                    console.error(`Error during server synthesis: ${response.status} - ${errorText}`);
+                    statusDiv.textContent = `❌ Server Error during synthesis: ${response.status} (See console for details)`;
+                    throw new Error(`HTTP Error ${response.status}: ${errorText}`);
+                }
+
+                const audioBlob = await response.blob();
+                return audioBlob;
+
+            } catch (error) {
+                console.error(`Error synthesizing sentence "${text.substring(0, 30)}...":`, error);
+                // Cancel the entire operation on error
+                stopPlayback(); 
+                return null;
+            }
+        }
+
+
+        async function synthesizeAndQueue() {
+            const text = textInput.value.trim();
+            if (!text) {
+                statusDiv.textContent = "Please enter some text.";
+                return;
+            }
+
+            // Start with a clean slate (reset queue and status)
+            // Note: stopPlayback doesn't reset downloadQueue if content exists, so we reset here
+            audioQueue = []; 
+            downloadQueue = []; // NEW: Reset the download queue completely
+            
+            speakButton.disabled = true;
+            stopButton.disabled = false;
+            downloadButton.disabled = true; 
+            isPlaying = true; 
+            isSynthesizing = true;
+            statusDiv.textContent = "✨ Starting preparation...";
+
+            const sentences = splitIntoSentences(text);
+            
+            for (let i = 0; i < sentences.length; i++) {
+                if (!isSynthesizing) {
+                    statusDiv.textContent = "Preparation cancelled.";
+                    break;
+                }
+                
+                const sentence = sentences[i];
+                // UPDATED MESSAGE
+                statusDiv.textContent = `⏳ Preparing: Sentence ${i + 1}/${sentences.length} (${sentence.substring(0, 30)}...)`;
+
+                const audioBlob = await synthesizeSentence(sentence);
+
+                if (audioBlob) {
+                    audioQueue.push(audioBlob);
+                    downloadQueue.push(audioBlob); // NEW: Store for download
+                    
+                    if (currentAudioElement === null && isPlaying) {
+                        playNextInQueue();
+                    }
+                    downloadButton.disabled = false; // Enable after the first successful sentence
+                    
+                } else {
+                    // Stop the loop if an error occurred (synthesizeSentence returns null)
+                    isSynthesizing = false;
+                    statusDiv.textContent = "❌ Preparation stopped after error in one sentence. Please try again.";
+                    speakButton.disabled = false;
+                    stopButton.disabled = true;
+                    downloadButton.disabled = true;
+                    // stopPlayback() is already called in synthesizeSentence() on error.
+                    break;
+                }
+            }
+            
+            isSynthesizing = false; 
+
+            if (audioQueue.length > 0 || currentAudioElement) {
+                statusDiv.textContent = "✅ All sentences requested. Queue is playing...";
+                // Download button remains active
+            } else if (!currentAudioElement && !isSynthesizing && sentences.length > 0) {
+                 // Only executed if the loop finished but resulted in no audio (e.g., all failed or server returned empty content)
+                 statusDiv.textContent = "Error: No audio received, or text was empty.";
+                 speakButton.disabled = false;
+                 stopButton.disabled = true;
+                 downloadButton.disabled = true;
+            } else if (sentences.length === 0) {
+                 // Handle case where splitIntoSentences returns 0 (only whitespace)
+                 statusDiv.textContent = "Please enter valid text (not just spaces).";
+                 speakButton.disabled = false;
+                 stopButton.disabled = true;
+                 downloadButton.disabled = true;
+            }
+        }
+        
+        // --- NEW DOWNLOAD FUNCTION ---
+        async function downloadAllAudio() {
+            if (downloadQueue.length === 0) {
+                alert("No audio has been synthesized yet to download.");
+                return;
+            }
+
+            statusDiv.textContent = "📥 Merging and downloading audio...";
+            downloadButton.disabled = true;
+
+            try {
+                // 1. Read all Blobs as ArrayBuffers
+                const buffers = await Promise.all(downloadQueue.map(readBlobAsArrayBuffer));
+                
+                // 2. Combine the DATA chunks
+                // The WAV format has a fixed header of 44 bytes.
+                let combinedDataSize = 0;
+                let dataChunks = []; // Array to store only the DATA chunks
+
+                for (let i = 0; i < buffers.length; i++) {
+                    const buffer = buffers[i];
+                    // We assume the DATA chunk starts at offset 44 (standard WAV)
+                    // and the size of the DATA chunk is at offset 40 (DataSize)
+                    const dataView = new DataView(buffer);
+                    
+                    // Size of the data chunk: 4 bytes from offset 40 (Little Endian)
+                    const dataSize = dataView.getUint32(40, true); 
+                    
+                    // Retrieve the binary data (starting from offset 44)
+                    const dataChunk = buffer.slice(44, 44 + dataSize);
+                    
+                    dataChunks.push(dataChunk);
+                    combinedDataSize += dataSize;
+                }
+
+                // 3. Create a new, empty buffer for the combined file
+                // Total size = 44 bytes header + combined data size
+                const totalLength = 44 + combinedDataSize;
+                const finalBuffer = new ArrayBuffer(totalLength);
+                const finalView = new Uint8Array(finalBuffer);
+
+                // 4. Copy the header of the first file (bytes 0-43)
+                // This preserves the sample rate, channels, and codec.
+                finalView.set(new Uint8Array(buffers[0].slice(0, 44)), 0);
+
+                // 5. Copy the combined data chunks after the header
+                let offset = 44;
+                for (const chunk of dataChunks) {
+                    finalView.set(new Uint8Array(chunk), offset);
+                    offset += chunk.byteLength;
+                }
+
+                // 6. Repair the headers of the combined file
+                // The RIFF ChunkSize (offset 4) and the DATA ChunkSize (offset 40) must be updated
+                fixWavHeader(finalBuffer, combinedDataSize);
+
+                // 7. Download the new Blob
+                const finalBlob = new Blob([finalBuffer], { type: 'audio/wav' });
+                const downloadUrl = URL.createObjectURL(finalBlob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+                a.download = `chatterbox_synthesis_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.wav`; // Cleaner filename
+                document.body.appendChild(a);
+                a.click();
+                
+                URL.revokeObjectURL(downloadUrl);
+                
+                statusDiv.textContent = "✅ Download complete. Queue is playing.";
+                downloadButton.disabled = false;
+
+            } catch (error) {
+                console.error("Error during download/merging:", error);
+                statusDiv.textContent = "❌ Error downloading the combined audio (see console).";
+                downloadButton.disabled = false;
+            }
+        }
+        // --- END NEW DOWNLOAD FUNCTION ---
+        
+        // --- VOICE USAGE LOGIC ---
+
+        // NEW FUNCTION: Reset the reference voice
+        function clearReferenceVoice() {
+            currentVoicePath = null;
+            // Clear the value of the file input so the same file can be chosen again
+            referenceAudioFile.value = ""; 
+            fileNameDisplay.textContent = 'No file selected.';
+            voiceStatus.textContent = 'No custom voice selected (Default voice will be used).';
+            // Hide the "Clear Voice" button
+            clearVoiceButton.style.display = 'none'; 
+            console.log("Reference voice reset to Default.");
+        }
+        
+        async function uploadReferenceAudio() {
+            const file = referenceAudioFile.files[0];
+            
+            if (!file) {
+                clearReferenceVoice(); // If no file, reset status
+                return;
+            }
+
+            // ROBUST CHECK: Allow multiple WAV MIME types
+            const acceptedTypes = ['audio/wav', 'audio/x-wav', 'audio/wave'];
+            
+            if (!acceptedTypes.includes(file.type)) {
+                 voiceStatus.textContent = `❌ Invalid file type (${file.type}). Only WAV is supported.`;
+                 // Reset file and path to prevent repeated errors
+                 clearReferenceVoice(); 
+                 fileNameDisplay.textContent = 'Invalid file type.';
+                 return;
+            }
+
+            const formData = new FormData();
+            formData.append('audioFile', file);
+            
+            voiceStatus.textContent = `📤 **Uploading** and **using** ${file.name}...`;
+            // Disable input during the operation.
+            referenceAudioFile.disabled = true;
+
+            try {
+                const response = await fetch('/upload_voice', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                referenceAudioFile.disabled = false;
+
+                if (response.ok) {
+                    const result = await response.json();
+                    currentVoicePath = result.target_voice_path; 
+                    const fileName = file.name;
+                    voiceStatus.textContent = `✅ Voice ${fileName} is now in use`;
+                    
+                    // SHOW THE CLEAR BUTTON
+                    clearVoiceButton.style.display = 'inline-block'; 
+                    console.log("New reference voice set:", currentVoicePath);
+
+                } else {
+                    const errorText = await response.text();
+                    voiceStatus.textContent = `❌ Usage Error: ${errorText}`;
+                    // Reset on error
+                    currentVoicePath = null;
+                    clearVoiceButton.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error("Error during usage/processing:", error);
+                voiceStatus.textContent = "❌ Network Error while using the voice.";
+                referenceAudioFile.disabled = false;
+                // Reset on error
+                currentVoicePath = null;
+                clearVoiceButton.style.display = 'none';
+            }
+        }
+    </script>
+
+</body>
+</html>
